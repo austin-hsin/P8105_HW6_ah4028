@@ -1,0 +1,48 @@
+---
+title: "P8105_HW6_ah4028"
+author: "Austin Hsin"
+date: "2023-11-28"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+library(tidyverse)
+```
+
+## Problem 2
+
+First, we will import the NOAA weather data provided by the homework document.
+
+```{r weather}
+weather_df = 
+  rnoaa::meteo_pull_monitors(
+    c("USW00094728"),
+    var = c("PRCP", "TMIN", "TMAX"), 
+    date_min = "2022-01-01",
+    date_max = "2022-12-31") |>
+  mutate(
+    name = recode(id, USW00094728 = "CentralPark_NY"),
+    tmin = tmin / 10,
+    tmax = tmax / 10) |>
+  select(name, id, everything())
+```
+
+Next, we will bootstrap our linear model of tmax = tmin + prcp
+
+```{r bootstrap}
+weather_df |> 
+  modelr::bootstrap(n = 1000) |> #kept at 1000 temporarily 
+  mutate(
+    models = map(strap, \(weather_df) lm(tmax ~ tmin + prcp, data = weather_df) ),
+    results = map(models, broom::tidy)) |> 
+  select(-strap, -models) 
+```
+
+
+
+## Problem 3
+
+```{r}
+
+```
+

@@ -6,14 +6,28 @@ output: html_document
 ---
 
 ```{r setup, include=FALSE}
+#Setup code including libraries and plot colors and theme settings
 library(tidyverse)
+
+knitr::opts_chunk$set(echo = TRUE)
+
+theme_set(theme_minimal() + theme(legend.position = "bottom"))
+
+options(
+  ggplot2.continuous.colour = "viridis",
+  ggplot2.continuous.fill = "viridis"
+)
+
+scale_colour_discrete = scale_colour_viridis_d
+scale_fill_discrete = scale_fill_viridis_d
 ```
 
 ## Problem 2
 
 First, we will import the NOAA weather data provided by the homework document.
 
-```{r weather}
+```{r weather, message = FALSE}
+#Importing NOAA Weather dataframe
 weather_df = 
   rnoaa::meteo_pull_monitors(
     c("USW00094728"),
@@ -27,18 +41,52 @@ weather_df =
   select(name, id, everything())
 ```
 
-Next, we will bootstrap our linear model of tmax = tmin + prcp
+Next, we will bootstrap our linear model of tmax = tmin + prcp and estimate r^2 and log(β^1∗β^2) from the samples.
 
-```{r bootstrap}
-weather_df |> 
-  modelr::bootstrap(n = 1000) |> #kept at 1000 temporarily 
+```{r bootstrap, warning = FALSE}
+#Creating bootstrapping model dataframe
+weather_model_df <- 
+  modelr::bootstrap(weather_df, n = 5000) |> #5000 samples
   mutate(
-    models = map(strap, \(weather_df) lm(tmax ~ tmin + prcp, data = weather_df) ),
-    results = map(models, broom::tidy)) |> 
-  select(-strap, -models) 
+    models = map(strap, \(weather_df) lm(tmax ~ tmin + prcp, data = weather_df)), #linear model of tmax
+    results = map(models, broom::tidy),
+    model_glance = map(models, broom::glance)) |> #fitted regression statistics, specifically for r^2
+  select(-strap, -models) |> #removing unnecessary variables
+  unnest(results, model_glance) |>
+  select(.id, term, estimate, r.squared) |>
+  pivot_wider(names_from = term,
+              values_from = estimate) |>
+  mutate(beta_calc = tmin + prcp)
+```
+Next, we will calculate the 95% confidence intervals for r^2 and log(β^1∗β^2).
+
+```{r calculations}
+#95% Confidence Interval for r^2
+weather_model_df |>
+  summarize(
+    r_sq_ci_lower = quantile(r.squared, 0.025), 
+    r_sq_ci_upper = quantile(r.squared, 0.975))
+
+#log(β^1∗β^2) and 95% confidence interval
+weather_model_df |>
+  summarize(
+    beta_ci_lower = quantile(beta_calc, 0.025),
+    beta_ci_upper = quantile(beta_calc, 0.975))
 ```
 
+Finally, we will plot the distribution of the estimates.
 
+```{r bootstrap plots}
+#r^2 distribution
+weather_model_df |>
+  ggplot(aes(x = r.squared)) + geom_density()
+
+#log(β^1∗β^2) distribution
+weather_model_df |>
+  ggplot(aes(x = beta_calc)) + geom_density()
+```
+
+DESCRIBE DISTRIBUTIONS
 
 ## Problem 3
 

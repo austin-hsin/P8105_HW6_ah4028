@@ -44,7 +44,7 @@ weather_df =
 Next, we will bootstrap our linear model of tmax = tmin + prcp and estimate r^2 and log(β^1∗β^2) from the samples.
 
 ```{r bootstrap, warning = FALSE}
-#Creating bootstrapping model dataframe
+#Bootstrapping weather_model dataframe
 weather_model_df <- 
   modelr::bootstrap(weather_df, n = 5000) |> #5000 samples
   mutate(
@@ -52,12 +52,13 @@ weather_model_df <-
     results = map(models, broom::tidy),
     model_glance = map(models, broom::glance)) |> #fitted regression statistics, specifically for r^2
   select(-strap, -models) |> #removing unnecessary variables
-  unnest(results, model_glance) |>
-  select(.id, term, estimate, r.squared) |>
+  unnest(results, model_glance) |> 
+  select(.id, term, estimate, r.squared) |> #selecting relevant variables
   pivot_wider(names_from = term,
               values_from = estimate) |>
-  mutate(beta_calc = tmin + prcp)
+  mutate(beta_calc = tmin + prcp) #log(β^1∗β^2) calculation 
 ```
+
 Next, we will calculate the 95% confidence intervals for r^2 and log(β^1∗β^2).
 
 ```{r calculations}
@@ -74,23 +75,36 @@ weather_model_df |>
     beta_ci_upper = quantile(beta_calc, 0.975))
 ```
 
+The distribution of r^2 has a 95% confidence interval of (0.8882, 0.9409) and
+the distribution of log(β^1∗β^2) has a 95% confidence interval of (0.9798, 1.044).
+
 Finally, we will plot the distribution of the estimates.
 
 ```{r bootstrap plots}
 #r^2 distribution
 weather_model_df |>
-  ggplot(aes(x = r.squared)) + geom_density()
+  ggplot(aes(x = r.squared)) + geom_density() +
+  labs(title = "Distribution of r^2 estimates from bootstrap samples of NOAA tmax weather model") + #title
+  scale_x_continuous(n.breaks = 10) #ensuring adequate x axis breaks
 
 #log(β^1∗β^2) distribution
 weather_model_df |>
-  ggplot(aes(x = beta_calc)) + geom_density()
+  ggplot(aes(x = beta_calc)) + geom_density() +
+  labs(title = "Distribution of beta_calc from bootstrap samples of NOAA tmax weather model") + #title
+  scale_x_continuous(n.breaks = 11) #ensuring adequate x axis breaks
 ```
 
-DESCRIBE DISTRIBUTIONS
+From the plot of the distribution of `r.squared`, we can see that the distribution is left skewed between 0.861 to 0.952 with a central tendency at 0.916.
+From the plot of the distribution of `beta_calc`, representing log(β^1∗β^2), we can see that the distribution is symmetrical between 0.952 and 1.073 with a central tendency at 1.014.
 
 ## Problem 3
 
-```{r}
+First, we will import, read, and tidy the `birthweight.csv` data.
 
+```{r birthweight}
+birthweight_df = read_csv("./data/birthweight.csv", 
+                          col_names = TRUE, #keeping column names
+                          col_types = "fnnnnnnnnfnnnnnnnnnnn") |> #setting column types
+  janitor::clean_names()
 ```
 

@@ -41,7 +41,7 @@ weather_df =
   select(name, id, everything())
 ```
 
-Next, we will bootstrap our linear model of tmax = tmin + prcp and estimate r^2 and log(β^1∗β^2) from the samples.
+Next, we will bootstrap our linear model of tmax = tmin + prcp and estimate r^2 and log(β^1 ∗ β^2) from the samples.
 
 ```{r bootstrap, warning = FALSE}
 #Bootstrapping weather_model dataframe
@@ -59,7 +59,7 @@ weather_model_df <-
   mutate(beta_calc = tmin + prcp) #log(β^1∗β^2) calculation 
 ```
 
-Next, we will calculate the 95% confidence intervals for r^2 and log(β^1∗β^2).
+Next, we will calculate the 95% confidence intervals for r^2 and log(β^1 ∗ β^2).
 
 ```{r calculations}
 #95% Confidence Interval for r^2
@@ -76,7 +76,7 @@ weather_model_df |>
 ```
 
 The distribution of r^2 has a 95% confidence interval of (0.8882, 0.9409) and
-the distribution of log(β^1∗β^2) has a 95% confidence interval of (0.9798, 1.044).
+the distribution of log(β^1 ∗ β^2) has a 95% confidence interval of (0.9798, 1.044).
 
 Finally, we will plot the distribution of the estimates.
 
@@ -95,11 +95,11 @@ weather_model_df |>
 ```
 
 From the plot of the distribution of `r.squared`, we can see that the distribution is left skewed between 0.861 to 0.952 with a central tendency at 0.916.
-From the plot of the distribution of `beta_calc`, representing log(β^1∗β^2), we can see that the distribution is symmetrical between 0.952 and 1.073 with a central tendency at 1.014.
+From the plot of the distribution of `beta_calc`, representing log(β^1 ∗ β^2), we can see that the distribution is symmetrical between 0.952 and 1.073 with a central tendency at 1.014.
 
 ## Problem 3
 
-First, we will import, read, and tidy the `birthweight.csv` data.
+First, we will import and tidy the `birthweight.csv` data.
 
 ```{r birthweight}
 birthweight_df = read_csv("./data/birthweight.csv", 
@@ -107,4 +107,10 @@ birthweight_df = read_csv("./data/birthweight.csv",
                           col_types = "fnnnnnnnnfnnnnnnnnnnn") |> #setting column types
   janitor::clean_names()
 ```
+
+Description of proposed model thought process
+I included `babysex` and `mrace` as controls, just instinctively given epi background.
+Baby measurements `bhead` and `blength` are self-evidently, likely to have positive association.
+Mother attributes wise, I included `gaweeks`, `mheight`, `momage`, `delwt`, and `wtgain` as physical attributes as well as `smoken` and `fincome` as external attributes.
+
 

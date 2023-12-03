@@ -8,6 +8,7 @@ output: html_document
 ```{r setup, include=FALSE}
 #Setup code including libraries and plot colors and theme settings
 library(tidyverse)
+library(modelr)
 
 knitr::opts_chunk$set(echo = TRUE)
 
@@ -102,15 +103,63 @@ From the plot of the distribution of `beta_calc`, representing log(β^1 ∗ β^2
 First, we will import and tidy the `birthweight.csv` data.
 
 ```{r birthweight}
-birthweight_df = read_csv("./data/birthweight.csv", 
+#Importing birthweight.csv
+bwt_df = read_csv("./data/birthweight.csv", 
                           col_names = TRUE, #keeping column names
                           col_types = "fnnnnnnnnfnnnnnnnnnnn") |> #setting column types
   janitor::clean_names()
 ```
 
-Description of proposed model thought process
-I included `babysex` and `mrace` as controls, just instinctively given epi background.
-Baby measurements `bhead` and `blength` are self-evidently, likely to have positive association.
-Mother attributes wise, I included `gaweeks`, `mheight`, `momage`, `delwt`, and `wtgain` as physical attributes as well as `smoken` and `fincome` as external attributes.
+Next, we will propose a model for newborn birthweight, using some of the variables from `birthweight_df`, and subsequently produce a residuals vs fit plot.
 
+```{r bwt_model}
+#Proposed bwt linear model
+bwt_model = lm(bwt ~ gaweeks + mheight + momage + delwt + parity + wtgain + smoken + fincome, data = bwt_df)
 
+#Residuals vs Predicted plot
+bwt_df |>
+  modelr::add_residuals(bwt_model) |>
+  modelr::add_predictions(bwt_model) |>
+  ggplot(aes(x = pred, y = resid)) + 
+  geom_point() +
+  geom_line(aes(y = pred), color = "red") +
+  labs(title = "Residuals vs Predicted plot of birthweight model")
+```
+
+With regards to modeling, I primarily included mother attributes, specifically `gaweeks`, `mheight`, `momage`, `delwt`, `parity`, and `wtgain`, from prior healthcare knowledge as well as `smoken` and `fincome` as external attributes that are documented determinants. However, from the residuals vs predicted plot, it initially looks like the linear model is not very good given the clustering of values below the predicted line.
+
+Finally, we will cross validate the proposed birthweight model against two other proposed models.
+
+```{r cross_validation}
+#Creating cross validation dataframe
+cv_df = crossv_mc(bwt_df, 100)
+
+#Creating training and testing datasets
+cv_df = cv_df |>
+  mutate(train = map(train, as_tibble),
+         test = map(test, as_tibble))
+
+#Fitting models and obtaining RMSEs
+cv_df = cv_df |>
+  mutate(proposed_mod = map(train, \(df) lm(bwt ~ gaweeks + mheight + momage + delwt + parity + wtgain + smoken + fincome, data = df)),
+         first_mod = map(train, \(df) lm(bwt ~ blength + gaweeks, data = df)), 
+         second_mod = map(train, \(df) lm(bwt ~ bhead + blength + babysex + bhead * blength + bhead * babysex + blength * babysex + bhead * blength * babysex, data = df))) |>
+  mutate(
+    rmse_proposed = map2_dbl(proposed_mod, test, \(mod, df) rmse(model = mod, data = df)),
+    rmse_first = map2_dbl(first_mod, test, \(mod,df) rmse(model = mod, data = df)),
+    rmse_second = map2_dbl(second_mod, test, \(mod,df) rmse(model = mod, data = df)))
+
+#Plotting RMSE values for all three proposed models
+cv_df |>
+  select(starts_with("rmse")) |>
+  pivot_longer(
+    everything(),
+    names_to = "model",
+    values_to = "rmse",
+    names_prefix = "rmse_") |>
+  mutate(model = fct_inorder(model)) |>
+  ggplot(aes(x = model, y = rmse)) + 
+  geom_violin() +
+  labs(title = "Cross Validation of 3 proposed infant birthweight models")
+```
+From our cross validation plots, we can see that the proposed model of `bhead`, `blength`, and `babysex` and all possible interactions has the best fit out of all three proposed models as it has the lowest rmse value. On the flip side, my proposed linear model of `gaweeks`, `mheight`,  `momage`, `delwt`, `parity`, `wtgain`, `smoken`, and `fincome` has the highest rmse of the three and thereby has really bad fit.
